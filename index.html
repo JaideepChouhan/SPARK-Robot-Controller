@@ -21,11 +21,12 @@
             background: rgba(0, 0, 0, 0.6);
         }
         #video-stream {
-            width: 100%;
-            max-width: 600px;
+            width: 80%;
             height: auto;
             border: 3px solid white;
             border-radius: 10px;
+            display: block;
+            margin: 0 auto;
         }
         .controls {
             margin-top: 20px;
@@ -60,6 +61,10 @@
             display: none;
             color: lime;
         }
+        #bluetooth-devices {
+            margin-top: 20px;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -78,10 +83,28 @@
             <button class="btn" onclick="sendCommand('10')">Sit Down</button>
             <button class="btn" onclick="sendCommand('80')">Stand Up</button>
         </div>
+
+        <!-- Bluetooth Device Selection -->
+        <div id="bluetooth-devices">
+            <button class="btn" onclick="connectBluetooth()">Connect Bluetooth</button>
+            <ul id="device-list"></ul>
+        </div>
     </div>
 
     <script>
         let voiceMode = false;
+        let selectedBluetoothDevice = null;
+        let serverIp = "";  // Variable to store server IP dynamically
+
+        // Fetch the server IP dynamically
+        fetch("http://192.168.43.114/get-ip")  // Replace this with your actual server's IP endpoint
+            .then(response => response.json())
+            .then(data => {
+                serverIp = data.ip;  // Store the IP address dynamically
+                console.log("Robot's Local IP Address: ", serverIp);
+            })
+            .catch(error => console.error("Error fetching IP:", error));
+
         document.getElementById("mode-toggle").addEventListener("click", function() {
             voiceMode = !voiceMode;
             document.getElementById("manual-controls").style.display = voiceMode ? "none" : "flex";
@@ -91,9 +114,20 @@
         });
 
         function sendCommand(command) {
-            fetch("http://your-server-ip/send-command?cmd=" + command)
-                .then(response => console.log("Command Sent: " + command))
-                .catch(error => console.error("Error:", error));
+            if (selectedBluetoothDevice) {
+                // Send command over Bluetooth
+                console.log(`Sending command via Bluetooth: ${command}`);
+                // Add actual Bluetooth command send logic here
+            } else {
+                if (serverIp) {
+                    // Send command to the server dynamically using the fetched IP
+                    fetch(`http://${serverIp}/send-command?cmd=${command}`)
+                        .then(response => console.log("Command Sent: " + command))
+                        .catch(error => console.error("Error:", error));
+                } else {
+                    console.error("Server IP not available");
+                }
+            }
         }
 
         function activateVoiceControl() {
@@ -108,7 +142,21 @@
             };
             recognition.start();
         }
+
+        async function connectBluetooth() {
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: 'HC05' }],
+                    optionalServices: ['battery_service']
+                });
+
+                selectedBluetoothDevice = device;
+                document.getElementById("bluetooth-devices").innerHTML = `Connected to: ${device.name}`;
+                console.log('Bluetooth device connected:', device);
+            } catch (error) {
+                console.log('Error connecting Bluetooth:', error);
+            }
+        }
     </script>
 </body>
 </html>
-
