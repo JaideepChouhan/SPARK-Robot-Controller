@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPARK Robot Controller</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: linear-gradient(to right, #141e30, #243b55);
+      color: white;
+      margin: 0;
+      padding: 20px;
+    }
+    
+    h2 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    #stream {
+      width: 90%;
+      max-width: 480px;
+      border: 3px solid #fff;
+      border-radius: 10px;
+    }
+
+    .button-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      justify-content: center;
+      max-width: 300px;
+      margin: 20px auto;
+    }
+
+    button {
+      padding: 15px;
+      font-size: 20px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #45a049;
+    }
+
+    #bluetooth-btn {
+      background: #008CBA;
+    }
+
+    #bluetooth-btn:hover {
+      background: #007bb5;
+    }
+
+    #joystick-container {
+      width: 200px;
+      height: 200px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      position: relative;
+      margin: 20px auto;
+    }
+
+    #joystick {
+      width: 60px;
+      height: 60px;
+      background: red;
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+  </style>
+</head>
+<body>
+
+  <h2>SPARK Robot Controller</h2>
+  
+  <img id="stream" src="http://192.168.0.8:81/stream">
+  
+  <br><br>
+  
+  <div class="button-container">
+    <button onclick="sendCommand('F')">⬆️</button>
+    <button onclick="sendCommand('L')">⬅️</button>
+    <button onclick="sendCommand('R')">➡️</button>
+    <button onclick="sendCommand('B')">⬇️</button>
+  </div>
+
+  <button id="bluetooth-btn" onclick="connectBluetooth()">🔵 Connect to Bluetooth</button>
+
+  <div id="joystick-container">
+    <div id="joystick"></div>
+  </div>
+
+  <script>
+    let bluetoothDevice;
+    let bluetoothCharacteristic;
+
+    async function connectBluetooth() {
+      try {
+        bluetoothDevice = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: ['00001101-0000-1000-8000-00805F9B34FB']
+        });
+
+        const server = await bluetoothDevice.gatt.connect();
+        const service = await server.getPrimaryService('00001101-0000-1000-8000-00805F9B34FB');
+        bluetoothCharacteristic = await service.getCharacteristic('00001101-0000-1000-8000-00805F9B34FB');
+
+        alert("Connected to Bluetooth!");
+      } catch (error) {
+        alert("Bluetooth Connection Failed");
+      }
+    }
+
+    async function sendCommand(command) {
+      if (!bluetoothCharacteristic) {
+        await connectBluetooth();
+      }
+      let encoder = new TextEncoder();
+      await bluetoothCharacteristic.writeValue(encoder.encode(command));
+    }
+  </script>
+
+</body>
+</html>
