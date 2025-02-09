@@ -1,134 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SPARK Robot Controller</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background: linear-gradient(to right, #141e30, #243b55);
-      color: white;
-      margin: 0;
-      padding: 20px;
-    }
-    
-    h2 {
-      font-size: 24px;
-      margin-bottom: 10px;
-    }
-
-    #stream {
-      width: 90%;
-      max-width: 480px;
-      border: 3px solid #fff;
-      border-radius: 10px;
-    }
-
-    .button-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 10px;
-      justify-content: center;
-      max-width: 300px;
-      margin: 20px auto;
-    }
-
-    button {
-      padding: 15px;
-      font-size: 20px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-
-    button:hover {
-      background: #45a049;
-    }
-
-    #bluetooth-btn {
-      background: #008CBA;
-    }
-
-    #bluetooth-btn:hover {
-      background: #007bb5;
-    }
-
-    #joystick-container {
-      width: 200px;
-      height: 200px;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 50%;
-      position: relative;
-      margin: 20px auto;
-    }
-
-    #joystick {
-      width: 60px;
-      height: 60px;
-      background: red;
-      border-radius: 50%;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPARK Robot Controller</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            padding: 20px;
+        }
+        .container {
+            width: 80%;
+            margin: auto;
+            padding: 20px;
+            border: 4px solid white;
+            border-radius: 15px;
+            background: rgba(0, 0, 0, 0.6);
+        }
+        #video-stream {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            border: 3px solid white;
+            border-radius: 10px;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .btn {
+            width: 120px;
+            height: 50px;
+            margin: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            border: 2px solid white;
+            background: #ff9800;
+            color: white;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+        .btn:hover {
+            background: #e68900;
+        }
+        #mode-toggle {
+            background: #4caf50;
+        }
+        #mode-toggle:hover {
+            background: #45a049;
+        }
+        .voice-active {
+            font-size: 20px;
+            margin-top: 20px;
+            display: none;
+            color: lime;
+        }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <h1>SPARK Robot Controller</h1>
+        <img id="video-stream" src="http://192.168.0.8:81/stream" alt="Live Stream">
+        
+        <button id="mode-toggle" class="btn">Switch to Voice Mode</button>
+        <p id="voice-status" class="voice-active">Voice Control Active</p>
+        
+        <div id="manual-controls" class="controls">
+            <button class="btn" onclick="sendCommand('F')">Forward</button>
+            <button class="btn" onclick="sendCommand('B')">Backward</button>
+            <button class="btn" onclick="sendCommand('L')">Left Turn</button>
+            <button class="btn" onclick="sendCommand('R')">Right Turn</button>
+            <button class="btn" onclick="sendCommand('10')">Sit Down</button>
+            <button class="btn" onclick="sendCommand('80')">Stand Up</button>
+        </div>
+    </div>
 
-  <h2>SPARK Robot Controller</h2>
-  
-  <img id="stream" src="http://192.168.0.8:81/stream">
-  
-  <br><br>
-  
-  <div class="button-container">
-    <button onclick="sendCommand('F')">⬆️</button>
-    <button onclick="sendCommand('L')">⬅️</button>
-    <button onclick="sendCommand('R')">➡️</button>
-    <button onclick="sendCommand('B')">⬇️</button>
-  </div>
-
-  <button id="bluetooth-btn" onclick="connectBluetooth()">🔵 Connect to Bluetooth</button>
-
-  <div id="joystick-container">
-    <div id="joystick"></div>
-  </div>
-
-  <script>
-    let bluetoothDevice;
-    let bluetoothCharacteristic;
-
-    async function connectBluetooth() {
-      try {
-        bluetoothDevice = await navigator.bluetooth.requestDevice({
-          acceptAllDevices: true,
-          optionalServices: ['00001101-0000-1000-8000-00805F9B34FB']
+    <script>
+        let voiceMode = false;
+        document.getElementById("mode-toggle").addEventListener("click", function() {
+            voiceMode = !voiceMode;
+            document.getElementById("manual-controls").style.display = voiceMode ? "none" : "flex";
+            document.getElementById("voice-status").style.display = voiceMode ? "block" : "none";
+            this.textContent = voiceMode ? "Switch to Manual Mode" : "Switch to Voice Mode";
+            if (voiceMode) activateVoiceControl();
         });
 
-        const server = await bluetoothDevice.gatt.connect();
-        const service = await server.getPrimaryService('00001101-0000-1000-8000-00805F9B34FB');
-        bluetoothCharacteristic = await service.getCharacteristic('00001101-0000-1000-8000-00805F9B34FB');
+        function sendCommand(command) {
+            fetch("http://your-server-ip/send-command?cmd=" + command)
+                .then(response => console.log("Command Sent: " + command))
+                .catch(error => console.error("Error:", error));
+        }
 
-        alert("Connected to Bluetooth!");
-      } catch (error) {
-        alert("Bluetooth Connection Failed");
-      }
-    }
-
-    async function sendCommand(command) {
-      if (!bluetoothCharacteristic) {
-        await connectBluetooth();
-      }
-      let encoder = new TextEncoder();
-      await bluetoothCharacteristic.writeValue(encoder.encode(command));
-    }
-  </script>
-
+        function activateVoiceControl() {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.continuous = true;
+            recognition.onresult = function(event) {
+                let transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
+                if (transcript.includes("move forward")) sendCommand("F");
+                else if (transcript.includes("move backward")) sendCommand("B");
+                else if (transcript.includes("turn left")) sendCommand("L");
+                else if (transcript.includes("turn right")) sendCommand("R");
+            };
+            recognition.start();
+        }
+    </script>
 </body>
 </html>
+
